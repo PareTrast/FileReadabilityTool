@@ -1,0 +1,13 @@
+[project]
+name = "filereadabilitytool"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "language-tool-python>=2.9.4",
+    "pypdf2>=3.0.1",
+    "python-docx>=1.2.0",
+    "streamlit>=1.46.1",
+    "textstat>=0.7.7",
+]
