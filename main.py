@@ -1,9 +1,10 @@
 # main.py
 import streamlit as st
 import pandas as pd
-from utils import extract_text_from_file, calculate_readability_scores, check_grammar
+from utils import extract_text_from_file, calculate_readability_scores, check_grammar, analyze_tone # Import analyze_tone
 
 # --- Helper functions for color coding ---
+# (Keep these exactly as they were)
 def get_flesch_reading_ease_color(score):
     if not isinstance(score, (int, float)):
         return "gray" # For N/A
@@ -34,12 +35,24 @@ def get_overall_grade_color(grade_text):
         return "red"
     return "gray" # For N/A or other values
 
+# New: Helper for tone color
+def get_tone_color(label):
+    if label == "POSITIVE":
+        return "green"
+    elif label == "NEGATIVE":
+        return "red"
+    elif label == "NEUTRAL":
+        return "blue" # Or a gray/yellow color if preferred
+    else:
+        return "gray" # For N/A or Error
+
+
 def main():
     st.set_page_config(page_title="Document Analyzer", layout="wide", initial_sidebar_state="auto")
-    st.title("📝 Document Readability & Grammar Analyzer")
+    st.title("📝 Document Readability & Grammar & Tone Analyzer") # Updated title
     st.markdown("""
         Upload your document (text, PDF, or Word) or paste text directly below
-        to get an instant readability assessment, word count, and grammar check.
+        to get an instant readability assessment, word count, grammar check, and tone analysis.
     """)
 
     # --- File Uploader Section ---
@@ -134,12 +147,40 @@ def main():
         st.markdown("---")
 
         st.subheader("All Readability Scores:")
-        scores_for_df = {k: v for k, v in scores.items() if k not in ["Word Count", "Sentence Count", "Character Count"]} # Exclude new counts from this table
+        scores_for_df = {k: v for k, v in scores.items() if k not in ["Word Count", "Sentence Count", "Character Count"]} # Exclude counts from this table
         scores_df = pd.DataFrame.from_dict(scores_for_df, orient='index', columns=['Score'])
         scores_df.index.name = 'Metric'
         st.dataframe(scores_df)
 
         st.markdown("---")
+
+        # --- New Tone Analysis Section ---
+        st.subheader("🗣️ Tone Analysis")
+        with st.spinner("Analyzing tone..."):
+            tone_result = analyze_tone(text_content_to_analyze)
+
+        if tone_result["label"] != "N/A":
+            tone_label = tone_result["label"]
+            tone_score = tone_result["score"]
+            tone_color = get_tone_color(tone_label)
+
+            st.markdown(f"<h3 style='color:{tone_color};'>Detected Tone: {tone_label.capitalize()}</h3>", unsafe_allow_html=True)
+            st.write(f"Confidence: **{tone_score:.2f}**")
+            st.info("""
+                **Tone Analysis (Sentiment)** estimates the overall emotional sentiment of the text.
+                * **POSITIVE**: Expresses positive emotion.
+                * **NEGATIVE**: Expresses negative emotion.
+                * **NEUTRAL**: Expresses neither strong positive nor negative emotion.
+                Note: Based on the first 500 characters for efficiency.
+            """)
+        elif tone_result["label"] == "Error":
+            st.warning("Could not analyze tone. Text might be too short or an internal error occurred.")
+        else:
+            st.info("Tone analysis not performed (empty text).")
+
+
+        st.markdown("---")
+
 
         # Grammar Check Section
         st.subheader("📚 Grammar and Spelling Check")
