@@ -1,10 +1,16 @@
 # main.py
 import streamlit as st
 import pandas as pd
-from utils import extract_text_from_file, calculate_readability_scores, check_grammar, analyze_tone # Import analyze_tone
+from utils import (
+    extract_text_from_file,
+    calculate_readability_scores,
+    check_grammar,
+    analyze_tone,
+    analyze_style
+)
 
 # --- Helper functions for color coding ---
-# (Keep these exactly as they were)
+
 def get_flesch_reading_ease_color(score):
     if not isinstance(score, (int, float)):
         return "gray" # For N/A
@@ -35,7 +41,6 @@ def get_overall_grade_color(grade_text):
         return "red"
     return "gray" # For N/A or other values
 
-# New: Helper for tone color
 def get_tone_color(label):
     if label == "POSITIVE":
         return "green"
@@ -46,13 +51,20 @@ def get_tone_color(label):
     else:
         return "gray" # For N/A or Error
 
+def get_style_color(label):
+    if label == "Formal":
+        return "darkgreen" # A slightly different green for distinction
+    elif label == "Informal":
+        return "darkorange" # A slightly different orange
+    else:
+        return "gray"
 
 def main():
     st.set_page_config(page_title="Document Analyzer", layout="wide", initial_sidebar_state="auto")
-    st.title("📝 Document Readability & Grammar & Tone Analyzer") # Updated title
+    st.title("📝 Document Readability & Grammar & Tone & Style Analyzer") # Updated title
     st.markdown("""
         Upload your document (text, PDF, or Word) or paste text directly below
-        to get an instant readability assessment, word count, grammar check, and tone analysis.
+        to get an instant readability assessment, word count, grammar check, tone analysis, and writing style detection.
     """)
 
     # --- File Uploader Section ---
@@ -147,14 +159,16 @@ def main():
         st.markdown("---")
 
         st.subheader("All Readability Scores:")
-        scores_for_df = {k: v for k, v in scores.items() if k not in ["Word Count", "Sentence Count", "Character Count"]} # Exclude counts from this table
+        scores_for_df = {k: v for k, v in scores.items() if k not in ["Word Count", "Sentence Count", "Character Count"]}
         scores_df = pd.DataFrame.from_dict(scores_for_df, orient='index', columns=['Score'])
         scores_df.index.name = 'Metric'
+        # FIX: Ensure the 'Score' column is treated as a string/object type
+        scores_df['Score'] = scores_df['Score'].astype(str) # Convert all scores to string type for display
         st.dataframe(scores_df)
 
         st.markdown("---")
 
-        # --- New Tone Analysis Section ---
+        # --- Tone Analysis Section ---
         st.subheader("🗣️ Tone Analysis")
         with st.spinner("Analyzing tone..."):
             tone_result = analyze_tone(text_content_to_analyze)
@@ -178,6 +192,30 @@ def main():
         else:
             st.info("Tone analysis not performed (empty text).")
 
+        st.markdown("---")
+
+        # --- Style Classification Section ---
+        st.subheader("✍️ Writing Style Detection")
+        with st.spinner("Analyzing writing style..."):
+            style_result = analyze_style(text_content_to_analyze)
+
+        if style_result["label"] != "N/A":
+            style_label = style_result["label"]
+            style_score = style_result["score"]
+            style_color = get_style_color(style_label)
+
+            st.markdown(f"<h3 style='color:{style_color};'>Detected Style: {style_label.capitalize()}</h3>", unsafe_allow_html=True)
+            st.write(f"Confidence: **{style_score:.2f}**")
+            st.info("""
+                **Writing Style Detection** classifies the formality of the text.
+                * **Formal**: Often characterized by precise language, complex sentences, and objective tone. Suitable for business, academic, or professional documents.
+                * **Informal**: May use simpler language, contractions, slang, and a more personal tone. Suitable for casual conversations, personal emails, or creative writing.
+                Note: Based on the first 500 characters for efficiency.
+            """)
+        elif style_result["label"] == "Error":
+            st.warning("Could not analyze writing style. Text might be too short or an internal error occurred.")
+        else:
+            st.info("Writing style analysis not performed (empty text).")
 
         st.markdown("---")
 
@@ -211,7 +249,7 @@ def main():
             * <span style='color:red;'>**Red (>12)**: College level or highly academic.</span>
         * **Text Standard**: Provides a general grade level range recommendation. Color-coded similarly to grade levels.
 
-        **Note:** Readability and grammar checks are statistical/rule-based estimates and should be used as a guide, not a definitive measure. They don't account for content complexity, vocabulary uniqueness, or reader's background knowledge. Always review suggested corrections!
+        **Note:** Readability, grammar, tone, and style checks are statistical/rule-based estimates and should be used as a guide, not a definitive measure. They don't account for content complexity, vocabulary uniqueness, or reader's background knowledge. Always review suggested corrections!
         """, unsafe_allow_html=True)
 
 if __name__ == "__main__":

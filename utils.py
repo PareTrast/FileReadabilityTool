@@ -16,7 +16,8 @@ def get_language_tool():
     Initializes and returns a LanguageTool instance.
     Uses Streamlit's caching to ensure it's only initialized once per session.
     """
-    return language_tool_python.LanguageTool('en-US') # Or 'en-GB', 'en-AU' etc.
+    # 'en-US' is default, can be changed to 'en-GB', 'en-AU' etc.
+    return language_tool_python.LanguageTool('en-US')
 
 @st.cache_resource
 def get_sentiment_pipeline():
@@ -24,8 +25,18 @@ def get_sentiment_pipeline():
     Initializes and returns a sentiment analysis pipeline from transformers.
     Uses Streamlit's caching to ensure the model is loaded only once per session.
     """
-    # Using a common sentiment analysis model finetuned on SST-2 for English sentiment.
+    # Model for general English sentiment analysis (positive, negative, neutral)
     return pipeline("sentiment-analysis", model="distilbert-base-uncased-finetuned-sst-2-english")
+
+@st.cache_resource
+def get_style_pipeline():
+    """
+    Initializes and returns a text style (formal/informal) classification pipeline.
+    Uses Streamlit's caching to ensure the model is loaded only once per session.
+    """
+    # Model for classifying text formality (Formal, Informal)
+    return pipeline("text-classification", model="LenDigLearn/formality-classifier-mdeberta-v3-base")
+
 
 # --- Text Extraction Functions ---
 
@@ -187,8 +198,7 @@ def analyze_tone(text):
     if not text.strip():
         return {"label": "N/A", "score": "N/A"}
 
-    # Transformers models have a token limit, typically 512.
-    # For longer texts, we truncate to avoid errors and maintain performance.
+    # Transformers models have a token limit (e.g., 512). Truncate for efficiency.
     # The sentiment will be based on this truncated portion.
     max_length = 500
     truncated_text = text[:max_length]
@@ -199,7 +209,34 @@ def analyze_tone(text):
         result = nlp_pipeline(truncated_text)[0]
         return result
     except Exception as e:
-        # This can happen if text is too short after truncation or other model errors
         # print(f"Error during sentiment analysis: {e}") # Uncomment for debugging
         return {"label": "Error", "score": "N/A"}
 
+# --- Style Classification Function ---
+
+def analyze_style(text):
+    """
+    Analyzes the text style (Formal/Informal).
+
+    Args:
+        text (str): The input text to analyze.
+
+    Returns:
+        dict: A dictionary containing the style label (Formal, Informal)
+              and its confidence score, or N/A if text is empty.
+    """
+    if not text.strip():
+        return {"label": "N/A", "score": "N/A"}
+
+    # Style models also have token limits, truncate similar to sentiment
+    max_length = 500
+    truncated_text = text[:max_length]
+
+    style_pipeline = get_style_pipeline()
+    try:
+        # The pipeline returns a list of dicts, e.g., [{'label': 'Formal', 'score': 0.98}]
+        result = style_pipeline(truncated_text)[0]
+        return result
+    except Exception as e:
+        # print(f"Error during style analysis: {e}") # Uncomment for debugging
+        return {"label": "Error", "score": "N/A"}
