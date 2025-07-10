@@ -250,7 +250,7 @@ def main():
         * **Text Standard**: Provides a general grade level range recommendation. Color-coded similarly to grade levels.
 
         **Note:** Readability, grammar, tone, and style checks are statistical/rule-based estimates and should be used as a guide, not a definitive measure. They don't account for content complexity, vocabulary uniqueness, or reader's background knowledge. Always review suggested corrections!
-        """, unsafe_allow_html=True)
+        """, unsafe_allow_html=True )
 
 if __name__ == "__main__":
     main()
